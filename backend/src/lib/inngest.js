@@ -6,8 +6,14 @@ import { deleteStreamUser, upsertStreamUser } from "./stream.js";
 export const inngest = new Inngest({ id: "talent-iq" });
 
 const syncUser = inngest.createFunction(
-  { id: "sync-user" },
-  { event: "clerk/user.created" },
+  {
+    id: "sync-user",
+    triggers: [
+      {
+        event: "clerk/user.created",
+      },
+    ],
+  },
   async ({ event }) => {
     await connectDB();
 
@@ -17,7 +23,7 @@ const syncUser = inngest.createFunction(
     const newUser = {
       clerkId: id,
       email: email_addresses[0]?.email_address,
-      name: `${first_name || ""} ${last_name || ""}`,
+      name: `${first_name || ""} ${last_name || ""}`.trim(),
       profileImage: image_url,
     };
 
@@ -28,20 +34,27 @@ const syncUser = inngest.createFunction(
       name: newUser.name,
       image: newUser.profileImage,
     });
-  }
+  },
 );
 
 const deleteUserFromDB = inngest.createFunction(
-  { id: "delete-user-from-db" },
-  { event: "clerk/user.deleted" },
+  {
+    id: "delete-user-from-db",
+    triggers: [
+      {
+        event: "clerk/user.deleted",
+      },
+    ],
+  },
   async ({ event }) => {
     await connectDB();
 
     const { id } = event.data;
+
     await User.deleteOne({ clerkId: id });
 
     await deleteStreamUser(id.toString());
-  }
+  },
 );
 
 export const functions = [syncUser, deleteUserFromDB];
